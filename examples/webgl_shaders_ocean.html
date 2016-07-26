@@ -86,7 +86,7 @@
 				controls = new THREE.OrbitControls( camera, renderer.domElement );
 				controls.enablePan = false;
 				controls.minDistance = 1000.0;
-				controls.maxDistance = 5000.0;
+				controls.maxDistance = 1000000.0;
 				controls.maxPolarAngle = Math.PI * 0.495;
 				controls.target.set( 0, 500, 0 );
 
@@ -100,10 +100,18 @@
 				waterNormals = new THREE.TextureLoader().load( 'textures/waternormals.jpg' );
 				waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
 
+				waterMask = new THREE.TextureLoader().load( 'textures/waterlevel.png' );
+				// waterMask.wrapS = waterMask.wrapT = THREE.RepeatWrapping;
+
+				waterLevel = new THREE.TextureLoader().load( 'textures/waterlevel.png' );
+				// waterMask.wrapS = waterMask.wrapT = THREE.RepeatWrapping;
+
 				water = new THREE.Water( renderer, camera, scene, {
 					textureWidth: 512,
 					textureHeight: 512,
 					waterNormals: waterNormals,
+					waterMask: waterMask,
+					waterLevel: waterLevel,
 					alpha: 	1.0,
 					sunDirection: light.position.clone().normalize(),
 					sunColor: 0xffffff,
@@ -113,7 +121,7 @@
 
 
 				mirrorMesh = new THREE.Mesh(
-					new THREE.PlaneBufferGeometry( parameters.width * 500, parameters.height * 500 ),
+					new THREE.PlaneBufferGeometry( parameters.width * 500, parameters.height * 500, 100, 100 ),
 					water.material
 				);
 
@@ -121,6 +129,48 @@
 				mirrorMesh.rotation.x = - Math.PI * 0.5;
 				scene.add( mirrorMesh );
 
+        // grid
+				var gridMaterial = new THREE.MeshPhongMaterial( {
+					color: 0x156289,
+					emissive: 0x072534,
+					side: THREE.DoubleSide,
+					shading: THREE.FlatShading
+				} );
+				var gridGeometry = new THREE.PlaneBufferGeometry(
+					  parameters.width * 500,
+					  parameters.height * 500,
+						10,
+						10
+					 );
+
+				var gridMesh = new THREE.Mesh(
+					gridGeometry,
+					gridMaterial
+				);
+				// scene.add( gridMesh );
+				var gridVertexMaterial = new THREE.LineBasicMaterial( {
+					color: 0xffffff,
+					transparent: false,
+					opacity: 0.5
+				});
+				var gridEdges = new THREE.LineSegments(
+								gridGeometry,
+								gridVertexMaterial
+							);
+				// scene.add( gridEdges );
+				gridEdges.rotation.x = - Math.PI * 0.5;
+				gridEdges.position.y = 10000.0;
+				var gridEdges = new THREE.LineSegments(
+								gridGeometry,
+								gridVertexMaterial
+							);
+				// scene.add( gridEdges );
+				gridEdges.rotation.x = - Math.PI * 0.5;
+				gridEdges.rotation.z = - Math.PI * 0.5;
+				gridEdges.position.y = 10000.0;
+
+				gridMesh.rotation.x = - Math.PI * 0.5;
+				gridMesh.position.y = 10000.0;
 
 				// load skybox
 
@@ -174,22 +224,7 @@
 				scene.add( skyBox );
 
 
-				var geometry = new THREE.IcosahedronGeometry( 400, 4 );
 
-				for ( var i = 0, j = geometry.faces.length; i < j; i ++ ) {
-
-					geometry.faces[ i ].color.setHex( Math.random() * 0xffffff );
-
-				}
-
-				var material = new THREE.MeshPhongMaterial( {
-					vertexColors: THREE.FaceColors,
-					shininess: 100,
-					envMap: cubeMap
-				} );
-
-				sphere = new THREE.Mesh( geometry, material );
-				scene.add( sphere );
 
 			}
 
@@ -206,9 +241,6 @@
 
 				var time = performance.now() * 0.001;
 
-				sphere.position.y = Math.sin( time ) * 500 + 250;
-				sphere.rotation.x = time * 0.5;
-				sphere.rotation.z = time * 0.51;
 
 				water.material.uniforms.time.value += 1.0 / 60.0;
 				controls.update();

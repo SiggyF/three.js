@@ -12,6 +12,8 @@ THREE.ShaderLib[ 'water' ] = {
 	uniforms: THREE.UniformsUtils.merge( [
 		THREE.UniformsLib[ "fog" ], {
 			"normalSampler":    { value: null },
+			"maskSampler":      { value: null },
+			"levelSampler":      { value: null },
 			"mirrorSampler":    { value: null },
 			"alpha":            { value: 1.0 },
 			"time":             { value: 0.0 },
@@ -28,6 +30,7 @@ THREE.ShaderLib[ 'water' ] = {
 	vertexShader: [
 		'uniform mat4 textureMatrix;',
 		'uniform float time;',
+		'uniform sampler2D levelSampler;',
 
 		'varying vec4 mirrorCoord;',
 		'varying vec3 worldPosition;',
@@ -37,7 +40,9 @@ THREE.ShaderLib[ 'water' ] = {
 		'	mirrorCoord = modelMatrix * vec4( position, 1.0 );',
 		'	worldPosition = mirrorCoord.xyz;',
 		'	mirrorCoord = textureMatrix * mirrorCoord;',
-		'	gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );',
+		'	vec4 level = texture2D( levelSampler, uv );',
+		' vec3 newPos = position + vec3(0.0, 0.0, level.x*8000.0);',
+		'	gl_Position = projectionMatrix * modelViewMatrix * vec4( newPos, 1.0 );',
 		'}'
 	].join( '\n' ),
 
@@ -49,6 +54,7 @@ THREE.ShaderLib[ 'water' ] = {
 		'uniform float time;',
 		'uniform float distortionScale;',
 		'uniform sampler2D normalSampler;',
+		'uniform sampler2D maskSampler;',
 		'uniform vec3 sunColor;',
 		'uniform vec3 sunDirection;',
 		'uniform vec3 eye;',
@@ -84,7 +90,13 @@ THREE.ShaderLib[ 'water' ] = {
 		'void main()',
 		'{',
 		'	vec4 noise = getNoise( worldPosition.xz );',
-		'	vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) );',
+		' float dist = 0.1;',
+		' float scale = 1000000.0;',
+		' vec2 uv = ((worldPosition.xz/1000000.0) + 1.0)/2.0;',
+		'	vec4 mask = texture2D( maskSampler, uv );',
+		'	float alphaA = mask.x ;',
+
+		'	vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 )  );',
 
 		'	vec3 diffuseLight = vec3(0.0);',
 		'	vec3 specularLight = vec3(0.0);',
@@ -105,7 +117,9 @@ THREE.ShaderLib[ 'water' ] = {
 		'	vec3 albedo = mix( sunColor * diffuseLight * 0.3 + scatter, ( vec3( 0.1 ) + reflectionSample * 0.9 + reflectionSample * specularLight ), reflectance );',
 		'	vec3 outgoingLight = albedo;',
 			THREE.ShaderChunk[ "fog_fragment" ],
-		'	gl_FragColor = vec4( outgoingLight, alpha );',
+		'	gl_FragColor = vec4( outgoingLight, 1.0 - alphaA );',
+
+
 		'}'
 	].join( '\n' )
 
@@ -132,6 +146,8 @@ THREE.Water = function ( renderer, camera, scene, options ) {
 	this.alpha = optionalParameter( options.alpha, 1.0 );
 	this.time = optionalParameter( options.time, 0.0 );
 	this.normalSampler = optionalParameter( options.waterNormals, null );
+	this.maskSampler = optionalParameter( options.waterMask, null );
+	this.levelSampler = optionalParameter( options.waterLevel, null );
 	this.sunDirection = optionalParameter( options.sunDirection, new THREE.Vector3( 0.70707, 0.70707, 0.0 ) );
 	this.sunColor = new THREE.Color( optionalParameter( options.sunColor, 0xffffff ) );
 	this.waterColor = new THREE.Color( optionalParameter( options.waterColor, 0x7F7F7F ) );
@@ -185,6 +201,8 @@ THREE.Water = function ( renderer, camera, scene, options ) {
 	this.material.uniforms.alpha.value = this.alpha;
 	this.material.uniforms.time.value = this.time;
 	this.material.uniforms.normalSampler.value = this.normalSampler;
+	this.material.uniforms.maskSampler.value = this.maskSampler;
+	this.material.uniforms.levelSampler.value = this.levelSampler;
 	this.material.uniforms.sunColor.value = this.sunColor;
 	this.material.uniforms.waterColor.value = this.waterColor;
 	this.material.uniforms.sunDirection.value = this.sunDirection;
